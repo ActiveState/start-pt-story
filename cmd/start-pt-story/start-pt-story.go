@@ -51,14 +51,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Could not get story: %s\n", err)
 		os.Exit(1)
 	}
-	if story.State != "unstarted" {
-		fmt.Fprintf(os.Stderr, "The story is in an unexpected state: %s\n", story.State)
-		os.Exit(1)
-	}
-	if len(story.OwnerIds) > 0 {
-		io.WriteString(os.Stderr, "The story already has an owner\n")
-		os.Exit(1)
-	}
+
+	checkStoryState(story, config.userID)
 
 	if regexp.MustCompile(fmt.Sprintf("%d", storyID)).MatchString(branch) {
 		fmt.Printf("You cannot put the story ID (%d) in the branch name (%s)\n", storyID, branch)
@@ -133,4 +127,23 @@ func storyID(id string) int {
 	}
 
 	return int(i)
+}
+
+func checkStoryState(story *pivotal.Story, userID int) {
+	if story.State == "started" {
+		for _, id := range story.OwnerIds {
+			if id == userID {
+				return
+			}
+		}
+	}
+
+	if story.State != "unstarted" {
+		fmt.Fprintf(os.Stderr, "The story is in an unexpected state: %s\n", story.State)
+		os.Exit(1)
+	}
+	if len(story.OwnerIds) > 0 {
+		io.WriteString(os.Stderr, "The story already has an owner\n")
+		os.Exit(1)
+	}
 }
