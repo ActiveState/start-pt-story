@@ -15,6 +15,9 @@ file must look like this:
 
     project_id = 1234567
     token = <your PT token here>
+    user_id = <your PT user id here>
+
+_Note: You can get your `user_id` by going to [https://www.pivotaltracker.com/services/v5/me](https://www.pivotaltracker.com/services/v5/me)_
 
 The tool will look in the given project for stories matching the ID you provide.
 
