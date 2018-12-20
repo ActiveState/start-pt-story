@@ -14,19 +14,16 @@ This command expects a config file at `$HOME/.pivotaltrackerrc` to exist. That
 file must look like this:
 
     token = <your PT token here>
-    project_id = 1234567
     user_id = <your PT user id here>
 
 You can create a token in your Pivotal Tracker user profile.
-
-The project id at the end of the URL when you view a project.
 
 You can get your `user_id` by going to
 [https://www.pivotaltracker.com/services/v5/me](https://www.pivotaltracker.com/services/v5/me). It's
 the `id` field in the JSON response.
 
-
-The tool will look in the given project for stories matching the ID you provide.
+The tool will look stories matching the ID you provide in all the projects to
+which you belong.
 
 This tool accepts the following options:
 
