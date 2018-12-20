@@ -17,15 +17,13 @@ import (
 // Make a config file at $HOME/.pivotaltrackerrc like this:
 //
 // token = ...
-// project_id = ...
 // user_id = ...
 //
 // You can get your user id by going to https://www.pivotaltracker.com/services/v5/me
 
 type config struct {
-	token     string
-	projectID int
-	userID    int
+	token  string
+	userID int
 }
 
 func main() {
@@ -45,15 +43,6 @@ func main() {
 	config := readConfig()
 	client := pivotal.NewClient(config.token)
 
-	storyID := storyID(id)
-	story, _, err := client.Stories.Get(config.projectID, storyID)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Could not get story: %s\n", err)
-		os.Exit(1)
-	}
-
-	checkStoryState(story, config.userID)
-
 	if regexp.MustCompile(fmt.Sprintf("%d", storyID)).MatchString(branch) {
 		fmt.Printf("You cannot put the story ID (%d) in the branch name (%s)\n", storyID, branch)
 		os.Exit(1)
@@ -65,8 +54,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	storyID := storyID(id)
+	story := findStory(client, storyID)
+	checkStoryState(story, config.userID)
 	_, _, err = client.Stories.Update(
-		config.projectID,
+		story.ProjectId,
 		storyID,
 		&pivotal.StoryRequest{OwnerIds: &([]int{config.userID}), State: "started"},
 	)
@@ -100,18 +92,13 @@ func readConfig() config {
 		io.WriteString(os.Stderr, "Could not get token value from config data\n")
 		os.Exit(1)
 	}
-	projectID, err := c.Int64("DEFAULT", "project_id")
-	if err != nil {
-		io.WriteString(os.Stderr, "Could not get project_id value from config data\n")
-		os.Exit(1)
-	}
 	userID, err := c.Int64("DEFAULT", "user_id")
 	if err != nil {
 		io.WriteString(os.Stderr, "Could not get user_id value from config data\n")
 		os.Exit(1)
 	}
 
-	return config{token: token, userID: int(userID), projectID: int(projectID)}
+	return config{token: token, userID: int(userID)}
 }
 
 func storyID(id string) int {
@@ -120,13 +107,32 @@ func storyID(id string) int {
 		os.Exit(1)
 	}
 
-	i, err := strconv.ParseInt(regexp.MustCompile(`^#`).ReplaceAllLiteralString(id, ""), 10, 0)
+	i, err := strconv.Atoi(regexp.MustCompile(`^#`).ReplaceAllLiteralString(id, ""))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Could not turn %s into an integer: %s\n", id, err)
 		os.Exit(1)
 	}
 
 	return int(i)
+}
+
+func findStory(client *pivotal.Client, storyID int) *pivotal.Story {
+	projects, _, err := client.Projects.List()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Could not get a list of projects for this user: %s\n", err)
+		os.Exit(1)
+	}
+
+	for _, p := range projects {
+		story, _, _ := client.Stories.Get(p.Id, storyID)
+		if story != nil {
+			return story
+		}
+	}
+
+	fmt.Fprintf(os.Stderr, "Could not find story %d in any project you belong to: %s\n", storyID, err)
+	os.Exit(1)
+	return nil
 }
 
 func checkStoryState(story *pivotal.Story, userID int) {
