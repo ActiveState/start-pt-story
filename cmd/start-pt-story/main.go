@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"io"
@@ -8,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"code.gitea.io/git"
 	"github.com/Unknwon/goconfig"
@@ -33,6 +35,8 @@ func main() {
 	flag.StringVar(&base, "base", "master", "The base branch from which to create the new branch")
 	var branch string
 	flag.StringVar(&branch, "branch", "", "The new branch name (without the story ID)")
+	var startUnscheduled bool
+	flag.BoolVar(&startUnscheduled, "unscheduled", false, "Start even if the story is unscheduled")
 	flag.Parse()
 
 	if branch == "" {
@@ -56,7 +60,7 @@ func main() {
 
 	storyID := storyID(id)
 	story := findStory(client, storyID)
-	checkStoryState(story, config.userID)
+	checkStoryState(story, config.userID, startUnscheduled)
 	_, _, err = client.Stories.Update(
 		story.ProjectId,
 		storyID,
@@ -135,7 +139,7 @@ func findStory(client *pivotal.Client, storyID int) *pivotal.Story {
 	return nil
 }
 
-func checkStoryState(story *pivotal.Story, userID int) {
+func checkStoryState(story *pivotal.Story, userID int, startUnscheduled bool) {
 	if story.State == "started" {
 		for _, id := range story.OwnerIds {
 			if id == userID {
@@ -145,6 +149,28 @@ func checkStoryState(story *pivotal.Story, userID int) {
 	}
 
 	if story.State != "unstarted" {
+		if story.State == "unscheduled" {
+			if startUnscheduled {
+				return
+			}
+
+			fmt.Printf("The story is unscheduled, are you certain you want to start it anyway? [y/n] ")
+
+			reader := bufio.NewReader(os.Stdin)
+			response, err := reader.ReadString('\n')
+			fmt.Println(response)
+			if err != nil {
+				fmt.Printf("Error occurred: %v", err)
+			}
+
+			if strings.TrimSpace(response) != "y" {
+				fmt.Println("Aborting")
+				os.Exit(0)
+			}
+
+			return
+		}
+
 		fmt.Fprintf(os.Stderr, "The story is in an unexpected state: %s\n", story.State)
 		os.Exit(1)
 	}
