@@ -67,7 +67,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	fullBranch := fmt.Sprintf("%s-%d", branch, storyID)
+	fullBranch := fmt.Sprintf("%d-%s", storyID, branch)
 	err = repo.CreateBranch(fullBranch, base)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Could not create a new branch, %s, from %s: %s\n", branch, base, err)
